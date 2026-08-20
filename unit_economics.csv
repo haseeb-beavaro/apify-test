@@ -1,5 +1,7 @@
 Task 6: Cost per user model,,,,,
 The most important tab. Fill the yellow cells and the sheet works out whether each plan makes money.,,,,,
+Reference product this is modeled on: sandcastles.ai (confirmed live 2026-08-20 - same platforms/tiers/prices/credits/refresh intervals),,,,,
+CORRECTION: Titan tracks 250 competitors not 500 - confirmed on sandcastles.ai pricing page (Titan and Visionary both cap at 250; Titan differs on refresh speed/credits/API access),,,,,
 ,,,,,
 SHARED ASSUMPTIONS,,,,,
 Cost per data fetch (USD),0.06,,,,"REAL - exact Apify dashboard cost, 1 creator refresh across TikTok+Instagram+YouTube, 5 items/platform (current LIMIT=5 config). See row 34 for the 1-item alternative."
@@ -10,26 +12,26 @@ Infrastructure cost per user (USD),1.50,,,,UNVERIFIED PLACEHOLDER - business est
 ,,,,,
 PER PLAN CALCULATION,,,,,
 Line item,Pro,Visionary,Titan,,What this means
-Price per month (USD),$39.00,$79.00,$399.00,,From pricing page
-Creators tracked,150,250,500,,What each plan promises
+Price per month (USD),$39.00,$79.00,$399.00,,From sandcastles.ai pricing page
+Creators tracked,150,250,250,,"CORRECTED - sandcastles.ai confirms Titan = 250, same as Visionary"
 Refresh interval (hours),12,6,1,,What each plan promises
 Credits per month,100,250,1500,,AI actions included
 Videos transcribed per month,100,250,1500,,Assume one transcript per credit
-Fetches per month,9000,30000,360000,,Creators x refreshes per day x 30 days
-Data cost (USD),$540.00,$1800.00,$21600.00,,Fetches x REAL dashboard cost per fetch ($0.06)
+Fetches per month,9000,30000,180000,,Creators x refreshes per day x 30 days
+Data cost (USD),$540.00,$1800.00,$10800.00,,Fetches x REAL dashboard cost per fetch ($0.06)
 Transcript cost (USD),$0.60,$1.50,$9.00,,Videos transcribed x cost per transcript (placeholder)
 AI cost (USD),$5.00,$12.50,$75.00,,Credits x cost per credit (placeholder)
 Infrastructure cost (USD),$1.50,$1.50,$1.50,,Flat allocation per user (placeholder)
-TOTAL COST (USD),$547.10,$1815.50,$21685.50,,Everything above added up
-GROSS PROFIT (USD),-$508.10,-$1736.50,-$21286.50,,Price minus total cost
-GROSS MARGIN,-1302.8%,-2198.1%,-5335.0%,,Aim for 70% or higher
+TOTAL COST (USD),$547.10,$1815.50,$10885.50,,Everything above added up
+GROSS PROFIT (USD),-$508.10,-$1736.50,-$10486.50,,Price minus total cost
+GROSS MARGIN,-1302.8%,-2198.1%,-2628.2%,,Aim for 70% or higher
 VERDICT,Does not work,Does not work,Does not work,,Every plan loses money on data cost alone - by a lot
 ,,,,,
-THREE COST SCENARIOS - all verified or clearly labeled,,,,,
+THREE COST SCENARIOS - all verified or clearly labeled (Titan corrected to 250 creators = 180000 fetches/month),,,,,
 ,Pro,Visionary,Titan,,Basis
-Placeholder from original template ($0.0009/fetch),$8.10,$27.00,$324.00,,Template example - not real
-Event-price floor 1 item/platform ($0.014/fetch),$126.00,$420.00,$5040.00,,Theoretical minimum if only 1 item/platform needed per refresh
-Dashboard-confirmed 5 items/platform ($0.06/fetch),$540.00,$1800.00,$21600.00,,ACTUAL current cost at LIMIT=5 - this is what the account is really being charged right now
+Placeholder from original template ($0.0009/fetch),$8.10,$27.00,$162.00,,Template example - not real
+Event-price floor 1 item/platform ($0.014/fetch),$126.00,$420.00,$2520.00,,Theoretical minimum if only 1 item/platform needed per refresh
+Dashboard-confirmed 5 items/platform ($0.06/fetch),$540.00,$1800.00,$10800.00,,ACTUAL current cost at LIMIT=5 - this is what the account is really being charged right now
 ,,,,,
 WHY THE GAP BETWEEN SCENARIOS,,,,,
 ,The $0.06 rate is the exact dashboard cost for 1 creator refresh at 5 items/platform across all 3 platforms - not an estimate,,,,

@@ -64,6 +64,16 @@ worth watching if it escalates to actual failures later in the 72h window.
 
 ## 3. Unit economics — Pro / Visionary / Titan
 
+**This pricing model is modeled directly on a real product: sandcastles.ai**
+(confirmed live 2026-08-20) — same platforms (TikTok/Instagram/YouTube
+Shorts), same "select a niche, track competitors" mechanic, same
+Pro/Visionary/Titan names and $39/$79/$399 prices, same credit counts, same
+refresh intervals. **One correction to the original template:**
+sandcastles.ai's Titan tier tracks **250 competitors, not 500** — Titan and
+Visionary both cap at 250 creators; Titan differentiates on refresh speed
+(1h vs 6h), credits (1500 vs 250), and API access, not creator count. All
+numbers below use the corrected 250.
+
 Full detail in `unit_economics.csv` (same structure as Task 6's template).
 Summary, using the **dashboard-confirmed** rate (exact Apify per-run costs
 at the current `LIMIT=5` config — TikTok $0.02 + IG search $0.01 + IG
@@ -72,12 +82,12 @@ estimate):
 
 | | Pro ($39/mo) | Visionary ($79/mo) | Titan ($399/mo) |
 |---|---|---|---|
-| Creators tracked | 150 | 250 | 500 |
+| Creators tracked | 150 | 250 | 250 (corrected from 500) |
 | Refresh interval | 12h | 6h | 1h |
-| Fetches/month | 9,000 | 30,000 | 360,000 |
-| Data cost @ dashboard rate $0.06/fetch | $540.00 | $1,800.00 | $21,600.00 |
-| Total cost (data + transcript + AI + infra) | $547.10 | $1,815.50 | $21,685.50 |
-| Gross margin | **−1,303%** | **−2,198%** | **−5,335%** |
+| Fetches/month | 9,000 | 30,000 | 180,000 |
+| Data cost @ dashboard rate $0.06/fetch | $540.00 | $1,800.00 | $10,800.00 |
+| Total cost (data + transcript + AI + infra) | $547.10 | $1,815.50 | $10,885.50 |
+| Gross margin | **−1,303%** | **−2,198%** | **−2,628%** |
 | Verdict | Does not work | Does not work | Does not work |
 
 **Three cost-per-fetch scenarios, from least to most real:**
