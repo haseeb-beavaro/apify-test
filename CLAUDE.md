@@ -131,14 +131,22 @@ A separate, standalone monitoring layer — **not** part of the V0 CLI, and
 reliability (failure rate, block rate, timeout rate, first-attempt vs
 recovered-after-retry) over a 3-day window instead of trusting one run.
 
-- `soak_test.py` — one monitoring cycle. Requests `LIMIT` results/platform
-  (currently **5**), reuses `app.py`'s Actor IDs/constants/
-  `normalize_*_item()` functions but implements its own retry loop
-  instrumented with: queue-vs-execution time split (via
+- `soak_test.py` — one monitoring cycle. Fires `CONCURRENT_USERS` (currently
+  **3**) simultaneous workers per platform via `ThreadPoolExecutor` — real
+  concurrent load against the vendor, not sequential calls, to catch
+  rate-limiting/blocking that only triggers under simultaneous requests.
+  Each worker independently requests `LIMIT` results/platform (currently
+  **5**) and runs its own retry-with-timeout cycle, reusing `app.py`'s Actor
+  IDs/constants/`normalize_*_item()` functions but implementing its own
+  retry loop instrumented with: queue-vs-execution time split (via
   `run.stats.run_time_secs` vs total wall time), blocking-signal detection
   (scans `RunClient.log().get()` text for `429`/`403`/`captcha`/
   `proxy retry`/etc.), required-field presence checks, and
-  first-attempt-vs-final outcome tracking. Appends one JSON line to
+  first-attempt-vs-final outcome tracking. Each platform's logged record
+  keeps worker 0's result at the top level (backward compatible with the
+  pre-concurrency log format) plus a `concurrent` summary (successes/
+  failures/blocked count across all workers) and the full
+  `concurrent_workers` list. Appends one JSON line to
   `data/soak_test/log.jsonl`.
 - `soak_test_report.py` — aggregates `log.jsonl` into per-platform failure
   rate, zero-result rate, timeout rate, blocked-run count, first-attempt
@@ -154,9 +162,9 @@ recovered-after-retry) over a 3-day window instead of trusting one run.
   GitHub's own runners, then commits `data/soak_test/` back to the repo.
   Deliberately spaced out (changed from an original every-20-minutes plan)
   to catch failures that only surface after hours of sustained running,
-  and because 6 cycles at `LIMIT=5` costs well under $1 total — trivially
-  inside the $3.50 cap, resolving the earlier LIMIT-vs-72h-coverage tension
-  without needing to cut `LIMIT` back down. Needs `APIFY_TOKEN` added as a GitHub
+  and because 6 cycles at `LIMIT=5` × `CONCURRENT_USERS=3` costs an
+  estimated ~$1.2-2 total — comfortably inside the $3.50 cap even with
+  concurrency tripling the per-checkpoint cost. Needs `APIFY_TOKEN` added as a GitHub
   Actions secret (Settings → Secrets and variables → Actions) — can't be set
   from the CLI without `gh` installed and authenticated, so this was a
   manual one-time step (already done).
@@ -165,18 +173,21 @@ recovered-after-retry) over a 3-day window instead of trusting one run.
   snapshot taken on its first-ever run (stored in
   `data/soak_test/budget_state.json`) and skips the cycle entirely
   (`status: "SKIPPED_BUDGET_CAP"`, zero Actor calls) once soak-test spend
-  hits `BUDGET_CAP_USD` (currently $3.50). At the current every-12h/`LIMIT=5`
-  cadence this is essentially a formality (well under $1 total expected
-  spend, against a $4.69 account balance at last check) — it was a hard
-  constraint back when the cadence was every 20 minutes (~216 cycles), not
-  now.
+  hits `BUDGET_CAP_USD` (currently $3.50). At the current every-12h/`LIMIT=5`/
+  `CONCURRENT_USERS=3` cadence this is still not a binding constraint
+  (~$1.2-2 total expected spend, against a $4.69 account balance at last
+  check) — it was a hard constraint back when the cadence was every 20
+  minutes (~216 cycles), not now.
 - `soak_test_checkpoint_report.py` — prints one row per (checkpoint, vendor)
   in the exact columns the tracking sheet wants (Requests made / Requests
   failed / Failure rate / Average response time (sec) / What went wrong),
   tab-separated for pasting directly into the sheet. Grouped into three
   blocks (TikTok/Instagram/YouTube) since the sheet template has one
   "Vendor" column — needs one copy of the sheet per vendor. "Requests made"
-  counts actor-call attempts (including retries), not items fetched.
+  sums actor-call attempts (including retries) across every concurrent
+  worker for that checkpoint, not items fetched — falls back to the single
+  top-level result for older log entries logged before `CONCURRENT_USERS`
+  existed (no `concurrent_workers` key present).
 - `.gitignore` special-cases this: `data/*` stays ignored (real per-run
   scrape output from `app.py`) but `!data/soak_test/` is tracked, since the
   soak test's `log.jsonl`/`budget_state.json` need to survive between

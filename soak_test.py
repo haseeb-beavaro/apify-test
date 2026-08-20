@@ -10,9 +10,10 @@ vs recovered-after-retry) without adding that instrumentation to the V0 CLI.
 Run manually (smoke test / GitHub Actions workflow_dispatch):
     python soak_test.py
 
-Scheduled (GitHub Actions cron, every 20 min): same command, unmodified.
-Each cycle requests LIMIT results/platform, checks the account's monthly Apify
-spend against a soak-test budget cap before doing any Actor calls, and
+Scheduled (GitHub Actions cron, every 12 hours): same command, unmodified.
+Each cycle checks the account's monthly Apify spend against a soak-test
+budget cap before doing any Actor calls, then fires CONCURRENT_USERS
+simultaneous requests per platform (each requesting LIMIT results), and
 appends one JSON line to data/soak_test/log.jsonl.
 """
 
@@ -20,6 +21,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 
@@ -45,6 +47,14 @@ from app import (
 
 NICHE = "AI automation"
 LIMIT = 5
+
+# Fire this many simultaneous requests per platform per checkpoint (real
+# concurrent load against the vendor, not sequential) -- 3 "users" hitting
+# the vendor at the same instant can surface rate-limiting/blocking that a
+# single lone request never would. Each worker runs the full independent
+# retry-with-timeout cycle, in its own thread (these are blocking HTTP
+# calls, well suited to threads over asyncio here).
+CONCURRENT_USERS = 3
 
 SOAK_DIR = Path(__file__).parent / "data" / "soak_test"
 LOG_PATH = SOAK_DIR / "log.jsonl"
@@ -244,6 +254,33 @@ def summarize_attempts(attempts):
     }
 
 
+def run_concurrent_users(monitor_fn, client, n=CONCURRENT_USERS):
+    """Fire n independent workers of monitor_fn(client) at the same time --
+    real concurrent load, not n sequential calls. Each worker runs its own
+    full retry-with-timeout cycle. Returns a list of n platform-record dicts.
+    """
+    with ThreadPoolExecutor(max_workers=n) as executor:
+        futures = [executor.submit(monitor_fn, client) for _ in range(n)]
+        return [future.result() for future in futures]
+
+
+def summarize_concurrent(worker_results):
+    successes = sum(1 for r in worker_results if r["status"] == "SUCCESS")
+    failures = len(worker_results) - successes
+    blocked = sum(1 for r in worker_results if r.get("blocked_signal"))
+    seconds = [r["total_seconds"] for r in worker_results if r.get("total_seconds") is not None]
+
+    return {
+        "worker_count": len(worker_results),
+        "successes": successes,
+        "failures": failures,
+        "failure_rate_percent": round(100 * failures / len(worker_results), 1) if worker_results else None,
+        "blocked_workers": blocked,
+        "avg_total_seconds": round(sum(seconds) / len(seconds), 2) if seconds else None,
+        "max_total_seconds": round(max(seconds), 2) if seconds else None,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Per-platform monitors
 # ---------------------------------------------------------------------------
@@ -410,17 +447,25 @@ def main():
         return
 
     wall_start = time.monotonic()
-    platforms = {
-        "tiktok": monitor_tiktok(client),
-        "instagram": monitor_instagram(client),
-        "youtube": monitor_youtube(client),
-    }
+    platforms = {}
+    for key, monitor_fn in (
+        ("tiktok", monitor_tiktok),
+        ("instagram", monitor_instagram),
+        ("youtube", monitor_youtube),
+    ):
+        worker_results = run_concurrent_users(monitor_fn, client)
+        platforms[key] = {
+            **worker_results[0],
+            "concurrent": summarize_concurrent(worker_results),
+            "concurrent_workers": worker_results,
+        }
     run_total_seconds = round(time.monotonic() - wall_start, 2)
 
     record = {
         "run_timestamp": run_timestamp,
         "niche": NICHE,
         "requested_per_platform": LIMIT,
+        "concurrent_users": CONCURRENT_USERS,
         "spent_by_soak_test_usd": spent_by_soak_test,
         "platforms": platforms,
         "run_total_seconds": run_total_seconds,
@@ -428,7 +473,11 @@ def main():
     append_log(record)
 
     for name, result in platforms.items():
-        print(f"{name:<10} {result['status']:<8} returned={result['returned']} total={result['total_seconds']:.1f}s")
+        c = result["concurrent"]
+        print(
+            f"{name:<10} {result['status']:<8} returned={result['returned']} total={result['total_seconds']:.1f}s "
+            f"| concurrent({c['worker_count']}): {c['successes']} ok / {c['failures']} failed / {c['blocked_workers']} blocked"
+        )
     print(f"Run total: {run_total_seconds:.1f}s | Soak-test spend so far: ${spent_by_soak_test:.4f} / ${BUDGET_CAP_USD}")
 
 

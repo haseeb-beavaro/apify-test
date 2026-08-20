@@ -15,21 +15,35 @@ LOG_PATH = Path(__file__).parent / "data" / "soak_test" / "log.jsonl"
 PLATFORM_KEYS = ["tiktok", "instagram", "youtube"]
 
 
-def collect_attempts(platform_record, platform_key):
-    """All actor-call attempts (including retries) for this vendor in this
-    checkpoint -- for Instagram that's search + profile enrichment combined."""
+def collect_attempts_for_worker(worker_record, platform_key):
+    """All actor-call attempts (including retries) for one worker's run of
+    this vendor -- for Instagram that's search + profile enrichment combined."""
     if platform_key == "instagram":
-        stages = [platform_record.get("search")]
-        if platform_record.get("profile_enrichment"):
-            stages.append(platform_record["profile_enrichment"])
+        stages = [worker_record.get("search")]
+        if worker_record.get("profile_enrichment"):
+            stages.append(worker_record["profile_enrichment"])
     else:
-        stages = [platform_record]
+        stages = [worker_record]
 
     attempts = []
     for stage in stages:
         if stage:
             attempts.extend(stage.get("attempts", []))
     return attempts
+
+
+def collect_attempts(platform_record, platform_key):
+    """All actor-call attempts across every concurrent worker (if this
+    checkpoint used CONCURRENT_USERS) or the single legacy run otherwise --
+    older log entries predate the concurrency feature and only have one
+    worker's worth of data at the top level."""
+    workers = platform_record.get("concurrent_workers")
+    if workers:
+        attempts = []
+        for worker in workers:
+            attempts.extend(collect_attempts_for_worker(worker, platform_key))
+        return attempts
+    return collect_attempts_for_worker(platform_record, platform_key)
 
 
 def what_went_wrong(platform_record, attempts):
@@ -46,6 +60,12 @@ def what_went_wrong(platform_record, attempts):
         issues.append("zero results")
     if platform_record.get("status") != "SUCCESS":
         issues.append("run failed")
+
+    concurrent = platform_record.get("concurrent")
+    if concurrent and concurrent["failures"] > 0:
+        issues.append(f"{concurrent['failures']}/{concurrent['worker_count']} concurrent users failed")
+    if concurrent and concurrent["blocked_workers"] > 0:
+        issues.append(f"{concurrent['blocked_workers']}/{concurrent['worker_count']} concurrent users blocked")
 
     if not issues:
         return "Clean run"
