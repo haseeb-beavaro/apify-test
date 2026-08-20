@@ -1,12 +1,15 @@
 name: Apify Soak Test
 
 # Manual trigger = the smoke test (one wiring-check run before the schedule
-# is trusted). Scheduled trigger = the actual 3-day, every-20-minute
-# reliability monitor. Both run the exact same script/command.
+# is trusted). Scheduled trigger = the actual 3-day, every-12-hour
+# reliability monitor (6 cycles over 72h) -- spaced out on purpose, to catch
+# failures that only show up after hours of running rather than sampling
+# densely early and exhausting budget before day 3. Both run the exact same
+# script/command.
 on:
   workflow_dispatch:
   schedule:
-    - cron: "7,27,47 * * * *"
+    - cron: "7 */12 * * *"
 
 permissions:
   contents: write

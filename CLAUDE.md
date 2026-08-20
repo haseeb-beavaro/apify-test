@@ -132,36 +132,43 @@ reliability (failure rate, block rate, timeout rate, first-attempt vs
 recovered-after-retry) over a 3-day window instead of trusting one run.
 
 - `soak_test.py` — one monitoring cycle. Requests `LIMIT` results/platform
-  (currently **3** — user explicitly chose this after the tradeoff was
-  explained twice: ~4-5x cost per cycle means the $3.50 cap now covers
-  roughly **~1-1.5 days**, not the full 72h; see Session log), reuses
-  `app.py`'s Actor IDs/constants/`normalize_*_item()` functions but
-  implements its own retry loop instrumented with: queue-vs-execution time
-  split (via `run.stats.run_time_secs` vs total wall time), blocking-signal
-  detection (scans `RunClient.log().get()` text for `429`/`403`/`captcha`/
+  (currently **3**), reuses `app.py`'s Actor IDs/constants/
+  `normalize_*_item()` functions but implements its own retry loop
+  instrumented with: queue-vs-execution time split (via
+  `run.stats.run_time_secs` vs total wall time), blocking-signal detection
+  (scans `RunClient.log().get()` text for `429`/`403`/`captcha`/
   `proxy retry`/etc.), required-field presence checks, and
   first-attempt-vs-final outcome tracking. Appends one JSON line to
   `data/soak_test/log.jsonl`.
 - `soak_test_report.py` — aggregates `log.jsonl` into per-platform failure
   rate, zero-result rate, timeout rate, blocked-run count, first-attempt
   success rate, recovered-after-retry count, and `median`/`p95`/`max`
-  seconds. Runnable anytime, not just after the full 3 days.
+  seconds. Runnable anytime, not just after the full 3 days. **Caveat at the
+  current cadence:** only ~6 samples per platform over 72h — enough to catch
+  a real, sustained failure, but any single-run percentage (e.g. "33%
+  failure rate" from 2 of 6) is statistically noisy. Don't over-read small
+  differences; look for a run that's actually broken, not for a precise rate.
 - `.github/workflows/soak-test.yml` — runs `python soak_test.py` on
   `workflow_dispatch` (manual smoke test) and on a schedule
-  (`cron: "7,27,47 * * * *"`, i.e. every 20 minutes) on GitHub's own
-  runners, then commits `data/soak_test/` back to the repo. Needs
-  `APIFY_TOKEN` added as a GitHub Actions secret (Settings → Secrets and
-  variables → Actions) — can't be set from the CLI without `gh` installed
-  and authenticated, so this is a manual one-time step.
+  (`cron: "7 */12 * * *"`, i.e. **every 12 hours**, ~6 cycles over 72h) on
+  GitHub's own runners, then commits `data/soak_test/` back to the repo.
+  Deliberately spaced out (changed from an original every-20-minutes plan)
+  to catch failures that only surface after hours of sustained running,
+  and because 6 cycles at `LIMIT=3` costs ~$0.24 total — trivially inside
+  the $3.50 cap, resolving the earlier LIMIT-vs-72h-coverage tension without
+  needing to cut `LIMIT` back down. Needs `APIFY_TOKEN` added as a GitHub
+  Actions secret (Settings → Secrets and variables → Actions) — can't be set
+  from the CLI without `gh` installed and authenticated, so this was a
+  manual one-time step (already done).
 - **Budget gate, not a run-count guarantee**: before any Actor calls,
   `soak_test.py` checks `client.user().monthly_usage()` against a baseline
   snapshot taken on its first-ever run (stored in
   `data/soak_test/budget_state.json`) and skips the cycle entirely
   (`status: "SKIPPED_BUDGET_CAP"`, zero Actor calls) once soak-test spend
-  hits `BUDGET_CAP_USD` (currently $3.50). If real per-run cost tracks the
-  ~$0.05–0.22 observed in earlier manual testing rather than the ~$0.014
-  theoretical event-price floor, the cap — not 3 days / ~216 scheduled
-  cycles — is what actually ends the test. That's intentional.
+  hits `BUDGET_CAP_USD` (currently $3.50). At the current every-12h/`LIMIT=3`
+  cadence this is essentially a formality (~$0.24 total expected spend, far
+  under the cap) — it was a hard constraint back when the cadence was every
+  20 minutes (~216 cycles), not now.
 - `.gitignore` special-cases this: `data/*` stays ignored (real per-run
   scrape output from `app.py`) but `!data/soak_test/` is tracked, since the
   soak test's `log.jsonl`/`budget_state.json` need to survive between
