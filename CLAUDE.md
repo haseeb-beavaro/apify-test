@@ -124,6 +124,50 @@ data/<timestamp>_<niche-slug>/
 └── summary.json
 ```
 
+## Soak test (supplier reliability monitor)
+
+A separate, standalone monitoring layer — **not** part of the V0 CLI, and
+`app.py` is untouched by it. Measures TikTok/Instagram/YouTube's real Actor
+reliability (failure rate, block rate, timeout rate, first-attempt vs
+recovered-after-retry) over a 3-day window instead of trusting one run.
+
+- `soak_test.py` — one monitoring cycle. Requests 1 result/platform, reuses
+  `app.py`'s Actor IDs/constants/`normalize_*_item()` functions but
+  implements its own retry loop instrumented with: queue-vs-execution time
+  split (via `run.stats.run_time_secs` vs total wall time), blocking-signal
+  detection (scans `RunClient.log().get()` text for `429`/`403`/`captcha`/
+  `proxy retry`/etc.), required-field presence checks, and
+  first-attempt-vs-final outcome tracking. Appends one JSON line to
+  `data/soak_test/log.jsonl`.
+- `soak_test_report.py` — aggregates `log.jsonl` into per-platform failure
+  rate, zero-result rate, timeout rate, blocked-run count, first-attempt
+  success rate, recovered-after-retry count, and `median`/`p95`/`max`
+  seconds. Runnable anytime, not just after the full 3 days.
+- `.github/workflows/soak-test.yml` — runs `python soak_test.py` on
+  `workflow_dispatch` (manual smoke test) and on a schedule
+  (`cron: "7,27,47 * * * *"`, i.e. every 20 minutes) on GitHub's own
+  runners, then commits `data/soak_test/` back to the repo. Needs
+  `APIFY_TOKEN` added as a GitHub Actions secret (Settings → Secrets and
+  variables → Actions) — can't be set from the CLI without `gh` installed
+  and authenticated, so this is a manual one-time step.
+- **Budget gate, not a run-count guarantee**: before any Actor calls,
+  `soak_test.py` checks `client.user().monthly_usage()` against a baseline
+  snapshot taken on its first-ever run (stored in
+  `data/soak_test/budget_state.json`) and skips the cycle entirely
+  (`status: "SKIPPED_BUDGET_CAP"`, zero Actor calls) once soak-test spend
+  hits `BUDGET_CAP_USD` (currently $3.50). If real per-run cost tracks the
+  ~$0.05–0.22 observed in earlier manual testing rather than the ~$0.014
+  theoretical event-price floor, the cap — not 3 days / ~216 scheduled
+  cycles — is what actually ends the test. That's intentional.
+- `.gitignore` special-cases this: `data/*` stays ignored (real per-run
+  scrape output from `app.py`) but `!data/soak_test/` is tracked, since the
+  soak test's `log.jsonl`/`budget_state.json` need to survive between
+  GitHub Actions runs via git, not local disk.
+- **Before trusting the schedule**: run the workflow once manually via
+  `workflow_dispatch` and confirm it wires up correctly end-to-end (token
+  works, all 3 platforms get called, `log.jsonl` gets committed) — that's
+  the smoke test. Only then let the cron schedule run unattended.
+
 ## apify-client version note
 
 `apify-client>=3.1` returns typed objects, not dicts. `client.actor(id).start(...)`
@@ -210,16 +254,24 @@ before requesting larger batches.
   confirmed the ~65s gap was Apify queueing the run before the container
   even started (not a bug in this code). Not something we can fix from the
   client side; the timeout harness already bounds it at `ACTOR_TIMEOUT_SECONDS`.
-- Agreed but **not yet built**: a 3-day soak test to measure TikTok/Instagram's
-  real failure rate over time (not one lucky run), capped at **$3.50** spend.
-  Planned as a GitHub Actions scheduled workflow (cron every ~3h, ~24 runs,
-  `APIFY_TOKEN` in Actions Secrets) rather than AWS, since the workload is
-  tiny and the repo is already on GitHub — each cycle checks
-  `client.user().monthly_usage()` against a start-of-test baseline and skips
-  the run (logging `BUDGET_CAP_REACHED`) if the $3.50 cap would be exceeded.
-  Next step when picked back up: build the runner + `data/soak_test/log.jsonl`
-  aggregator, then create the scheduled workflow.
 - Initialized git in this directory (previously not a repo), set repo-local
   identity, and pushed the initial commit to GitHub (see "Git / GitHub"
   above) — hit and resolved a Git Credential Manager conflict from multiple
   cached GitHub accounts on this machine along the way.
+- Built the 3-day soak test described in "Soak test" below: `soak_test.py`,
+  `soak_test_report.py`, `.github/workflows/soak-test.yml`. Cadence changed
+  from the originally-planned every-3-hours to **every 20 minutes**
+  (`cron: "7,27,47 * * * *"`, ~216 runs over 3 days) per a more detailed spec
+  — tracks queue-vs-execution time split, blocking-signal log scanning
+  (403/429/captcha/proxy-retry text matches), required-field presence, and
+  first-attempt-vs-recovered-after-retry outcomes, not just pass/fail.
+  Verified with a mocked `ApifyClient` (timeout/block/recovery/budget-cap
+  scenarios) — not yet live-tested or scheduled. **Flagged but unresolved:**
+  216 runs assumes the ~$0.014/run theoretical event-price floor; the
+  $3.50 cap will likely be hit well before 3 days elapse if real cost tracks
+  the ~$0.05–0.22/run observed in earlier manual testing instead — this is
+  by design (the budget gate protects spend over completing the schedule),
+  not a bug, but means "216 runs" is an upper bound, not a guarantee.
+  Remaining manual steps before it can run for real: add `APIFY_TOKEN` as a
+  GitHub Actions secret, then manually trigger the workflow once
+  (`workflow_dispatch`) as a smoke test before trusting the cron schedule.
