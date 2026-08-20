@@ -65,22 +65,36 @@ worth watching if it escalates to actual failures later in the 72h window.
 ## 3. Unit economics — Pro / Visionary / Titan
 
 Full detail in `unit_economics.csv` (same structure as Task 6's template).
-Summary:
+Summary, using the **dashboard-confirmed** rate (exact Apify per-run costs
+at the current `LIMIT=5` config — TikTok $0.02 + IG search $0.01 + IG
+profile $0.01 + YouTube $0.02 = **$0.06 per creator-refresh**, not an
+estimate):
 
 | | Pro ($39/mo) | Visionary ($79/mo) | Titan ($399/mo) |
 |---|---|---|---|
 | Creators tracked | 150 | 250 | 500 |
 | Refresh interval | 12h | 6h | 1h |
 | Fetches/month | 9,000 | 30,000 | 360,000 |
-| Data cost @ real $0.014/fetch | $126.00 | $420.00 | $5,040.00 |
-| Total cost (data + transcript + AI + infra) | $133.10 | $435.50 | $5,125.50 |
-| Gross margin | **−241%** | **−451%** | **−1,185%** |
+| Data cost @ dashboard rate $0.06/fetch | $540.00 | $1,800.00 | $21,600.00 |
+| Total cost (data + transcript + AI + infra) | $547.10 | $1,815.50 | $21,685.50 |
+| Gross margin | **−1,303%** | **−2,198%** | **−5,335%** |
 | Verdict | Does not work | Does not work | Does not work |
 
-**All three plans lose money on data cost alone at current scope.** The
-template's placeholder rate ($0.0009/fetch) was 15.6x cheaper than what
-Apify actually charges — using the real rate flips every plan from
-"tight but maybe workable" to "loses money on every single customer."
+**Three cost-per-fetch scenarios, from least to most real:**
+
+| Basis | $/fetch | Pro data cost |
+|---|---|---|
+| Original template placeholder | $0.0009 | $8.10 |
+| Event-price theoretical floor (1 item/platform) | $0.014 | $126.00 |
+| **Dashboard-confirmed (5 items/platform, current config)** | **$0.06** | **$540.00** |
+
+**All three plans lose money on data cost alone, catastrophically, at
+current scope.** The gap between the theoretical $0.014 and the actual
+$0.06 comes down to items-per-fetch: our current test setup pulls 5 items
+per platform per refresh, and Apify charges per item returned — the
+dashboard number is what's actually being billed right now, so it's the
+most defensible number to plan around unless the real product only ever
+needs 1 item per platform (in which case $0.014 applies instead).
 
 **Two cost lines in this model are unverified placeholders**, not measured
 data — flagged explicitly, not silently assumed real:
@@ -91,19 +105,29 @@ data — flagged explicitly, not silently assumed real:
 - Infrastructure cost ($1.50/user) — a business estimate, not something
   Apify data can inform at all.
 
-Only the **data fetch cost** ($0.014) is a real, live-verified number.
+Only the **data fetch cost** ($0.06, or $0.014 under the 1-item
+assumption) is a real, live-verified number.
 
 ---
 
 ## 4. Key open question that changes everything
 
-The $0.014/fetch rate assumes **1 fetch = refreshing a creator across all
-3 platforms** (TikTok + Instagram + YouTube), 1 item each. If the real
-product only tracks a creator on whichever single platform they're
-actually active on (not always all 3), real cost drops to roughly
-**$0.004–0.005/fetch** — still 4-5x the placeholder, but Pro's plan
-becomes survivable again. **This needs a real product-scope answer before
-any repricing decision is final.**
+The $0.06/fetch rate assumes **1 fetch = refreshing a creator across all
+3 platforms (TikTok + Instagram + YouTube), 5 items each** — the current
+test config, and what the dashboard is actually charging right now. Two
+separate product decisions each change this a lot:
+
+| If the real product needs... | Cost/fetch | Pro data cost |
+|---|---|---|
+| All 3 platforms, 5 items each (current basis) | $0.06 | $540.00 |
+| All 3 platforms, 1 item each | $0.014 | $126.00 |
+| 1 platform only, 5 items | ~$0.02 | ~$180.00 |
+| 1 platform only, 1 item | ~$0.005 | ~$45.00 |
+
+Even the cheapest realistic scenario (1 platform, 1 item) still exceeds
+Pro's $39 price on data cost alone. **This needs a real product-scope
+answer — both platform count and items-per-refresh — before any repricing
+decision is final.**
 
 ---
 
@@ -111,14 +135,18 @@ any repricing decision is final.**
 
 **Not yet decided.** Per the unit economics finding, the realistic paths
 are:
-1. **Reprice** — Pro would need to be ~$130+/month just to break even at
-   current scope, before any healthy margin.
-2. **Reduce scope** — Titan's 1-hour refresh interval is the single
-   biggest cost driver (360,000 fetches/month); cutting refresh frequency
-   or creator counts has outsized impact.
-3. **Resolve the open question above** — confirming "1 fetch = 1 platform"
-   instead of "1 fetch = 3 platforms" could make Pro workable without
-   repricing at all.
+1. **Reprice** — Pro would need to be ~$550+/month just to break even at
+   current scope (5 items/platform, all 3 platforms), before any healthy
+   margin. Even the cheapest realistic scope (1 platform, 1 item) still
+   needs Pro above $45/month to break even.
+2. **Reduce scope** — items-per-fetch and platforms-per-fetch are both
+   large levers (see the table in section 4); Titan's 1-hour refresh
+   interval is also a major cost driver (360,000 fetches/month) regardless
+   of which basis is used.
+3. **Resolve the open questions above** — both "how many platforms per
+   fetch" and "how many items per fetch" need real answers before any
+   repricing decision is final; the gap between best and worst case is
+   over 10x.
 
 Fill in the final decision, new pricing/scope, decision-maker, and date in
 `unit_economics.csv`'s "DECISION" section once resolved.

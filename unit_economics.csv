@@ -2,7 +2,7 @@ Task 6: Cost per user model,,,,,
 The most important tab. Fill the yellow cells and the sheet works out whether each plan makes money.,,,,,
 ,,,,,
 SHARED ASSUMPTIONS,,,,,
-Cost per data fetch (USD),0.014,,,,REAL - verified live against Apify account 2026-08-20 (not the 0.0009 placeholder - see note below)
+Cost per data fetch (USD),0.06,,,,"REAL - exact Apify dashboard cost, 1 creator refresh across TikTok+Instagram+YouTube, 5 items/platform (current LIMIT=5 config). See row 34 for the 1-item alternative."
 Days per month,30,,,,Fixed
 Cost per transcript (USD),0.0060,,,,UNVERIFIED PLACEHOLDER - V0 does not fetch transcripts (out of scope) so there is no real data for this yet
 Cost per AI credit (USD),0.0500,,,,UNVERIFIED PLACEHOLDER - V0 does no AI analysis (out of scope) so there is no real data for this yet
@@ -16,25 +16,26 @@ Refresh interval (hours),12,6,1,,What each plan promises
 Credits per month,100,250,1500,,AI actions included
 Videos transcribed per month,100,250,1500,,Assume one transcript per credit
 Fetches per month,9000,30000,360000,,Creators x refreshes per day x 30 days
-Data cost (USD),$126.00,$420.00,$5040.00,,Fetches x REAL cost per fetch ($0.014)
+Data cost (USD),$540.00,$1800.00,$21600.00,,Fetches x REAL dashboard cost per fetch ($0.06)
 Transcript cost (USD),$0.60,$1.50,$9.00,,Videos transcribed x cost per transcript (placeholder)
 AI cost (USD),$5.00,$12.50,$75.00,,Credits x cost per credit (placeholder)
 Infrastructure cost (USD),$1.50,$1.50,$1.50,,Flat allocation per user (placeholder)
-TOTAL COST (USD),$133.10,$435.50,$5125.50,,Everything above added up
-GROSS PROFIT (USD),-$94.10,-$356.50,-$4726.50,,Price minus total cost
-GROSS MARGIN,-241.3%,-451.3%,-1184.8%,,Aim for 70% or higher
-VERDICT,Does not work,Does not work,Does not work,,Every plan loses money on data cost alone
+TOTAL COST (USD),$547.10,$1815.50,$21685.50,,Everything above added up
+GROSS PROFIT (USD),-$508.10,-$1736.50,-$21286.50,,Price minus total cost
+GROSS MARGIN,-1302.8%,-2198.1%,-5335.0%,,Aim for 70% or higher
+VERDICT,Does not work,Does not work,Does not work,,Every plan loses money on data cost alone - by a lot
 ,,,,,
-COMPARISON: template placeholder vs real Apify pricing,,,,,
-,Pro,Visionary,Titan,,
-Data cost at placeholder $0.0009/fetch,$8.10,$27.00,$324.00,,What the template example assumed
-Data cost at REAL $0.014/fetch,$126.00,$420.00,$5040.00,,What Apify actually charges - 15.6x higher
+THREE COST SCENARIOS - all verified or clearly labeled,,,,,
+,Pro,Visionary,Titan,,Basis
+Placeholder from original template ($0.0009/fetch),$8.10,$27.00,$324.00,,Template example - not real
+Event-price floor 1 item/platform ($0.014/fetch),$126.00,$420.00,$5040.00,,Theoretical minimum if only 1 item/platform needed per refresh
+Dashboard-confirmed 5 items/platform ($0.06/fetch),$540.00,$1800.00,$21600.00,,ACTUAL current cost at LIMIT=5 - this is what the account is really being charged right now
 ,,,,,
-WHY THE GAP,,,,,
-,The $0.014 real rate assumes 1 fetch = refreshing one creator across all 3 platforms (TikTok + Instagram + YouTube),,,,
-,1 result each - this is the exact rate verified against live account spend multiple times tonight,,,,
-,If your actual product only needs 1 platform per creator not all 3 real cost drops to roughly $0.004-0.005/fetch,,,,
-,still 4-5x the placeholder but survivable at lower tiers - confirm this before finalizing,,,,
+WHY THE GAP BETWEEN SCENARIOS,,,,,
+,The $0.06 rate is the exact dashboard cost for 1 creator refresh at 5 items/platform across all 3 platforms - not an estimate,,,,
+,The $0.014 rate is the theoretical floor if the product only ever needs 1 item per platform per refresh instead of 5,,,,
+,If the real product only tracks a creator on ONE platform (not all 3) real cost drops further - roughly $0.02/fetch at 5 items or $0.005 at 1 item,,,,
+,The item-count-per-fetch and platform-count-per-fetch are both real product decisions that change this number a lot - confirm both before finalizing,,,,
 ,,,,,
 DECISION (fill in),,,,,
 Chosen option,,,,,proceed / reprice / reduce plan inclusion
