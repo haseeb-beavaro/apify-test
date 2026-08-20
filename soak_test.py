@@ -11,7 +11,7 @@ Run manually (smoke test / GitHub Actions workflow_dispatch):
     python soak_test.py
 
 Scheduled (GitHub Actions cron, every 20 min): same command, unmodified.
-Each cycle requests 1 result/platform, checks the account's monthly Apify
+Each cycle requests LIMIT results/platform, checks the account's monthly Apify
 spend against a soak-test budget cap before doing any Actor calls, and
 appends one JSON line to data/soak_test/log.jsonl.
 """
@@ -44,7 +44,7 @@ from app import (
 )
 
 NICHE = "AI automation"
-LIMIT = 1
+LIMIT = 3
 
 SOAK_DIR = Path(__file__).parent / "data" / "soak_test"
 LOG_PATH = SOAK_DIR / "log.jsonl"
