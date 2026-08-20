@@ -132,9 +132,9 @@ reliability (failure rate, block rate, timeout rate, first-attempt vs
 recovered-after-retry) over a 3-day window instead of trusting one run.
 
 - `soak_test.py` — one monitoring cycle. Requests `LIMIT` results/platform
-  (currently **3**, raised from 1 — costs ~4-5x more per cycle, so budget-cap
-  coverage drops from ~3 days to roughly ~1.2 days of the 20-minute cadence;
-  a deliberate tradeoff, not an oversight), reuses
+  (currently **3** — user explicitly chose this after the tradeoff was
+  explained twice: ~4-5x cost per cycle means the $3.50 cap now covers
+  roughly **~1-1.5 days**, not the full 72h; see Session log), reuses
   `app.py`'s Actor IDs/constants/`normalize_*_item()` functions but
   implements its own retry loop instrumented with: queue-vs-execution time
   split (via `run.stats.run_time_secs` vs total wall time), blocking-signal
