@@ -44,7 +44,7 @@ from app import (
 )
 
 NICHE = "AI automation"
-LIMIT = 3
+LIMIT = 5
 
 SOAK_DIR = Path(__file__).parent / "data" / "soak_test"
 LOG_PATH = SOAK_DIR / "log.jsonl"
