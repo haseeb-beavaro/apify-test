@@ -18,6 +18,27 @@ python app.py --niche "AI automation" --platform tiktok --limit 10
 
 `--platform` accepts `tiktok`, `instagram`, `youtube`, or `all` (default).
 
+## Git / GitHub
+
+Remote: `https://github.com/haseeb-beavaro/apify-test.git`, branch `main`.
+
+Git identity for this repo is set **locally, not globally**
+(`git config --local user.name/user.email` → `haseeb-beavaro` /
+`haseeb@beavaro.com`) — this machine has multiple GitHub accounts
+(`takweentutors1`, `haseeb-012`, `haseeb-beavaro`) with credentials that Git
+Credential Manager can cache, so a global identity would leak across repos.
+
+If `git push` fails with `Permission ... denied to <some-other-account>`,
+that's not a code or permissions problem — Windows Git Credential Manager
+grabbed a cached/logged-in session for the wrong GitHub account. Fix: log
+into `haseeb-beavaro` in the browser (log out of/switch away from the other
+account first), then retry the push; GCM will pick up that session. As a
+last resort, clear the stale cached credential first: `cmdkey /list` to find
+the `git:https://<account>@github.com` entry, `cmdkey /delete:"<target>"` to
+remove it, then retry — but that alone doesn't guarantee the *right* account
+gets picked up next, since GCM can silently reuse whatever GitHub session is
+active in the default browser.
+
 ## Actors used (exactly these four — do not swap or add others without asking)
 
 | Actor | Role | Input shape used |
@@ -159,3 +180,46 @@ three `normalize_*_item` functions all take plain dicts and have no Apify
 dependency. Only run `python app.py ...` for real against Apify when the
 user asks for a live run — start with `--limit 3` on one `--platform`
 before requesting larger batches.
+
+## Session log
+
+**2026-08-20 — Reliability harness built, live-validated, repo pushed to GitHub**
+- Built the timeout/retry/abort harness described in "Reliability" above
+  (`run_actor_with_retries()`), replacing the old fixed-4-minute
+  `client.actor(id).call(wait_duration=...)` approach. Verified against the
+  installed `apify-client==3.1.3` source directly (not guessed) — confirmed
+  `ActorClient.start()` + `RunClient.wait_for_finish(wait_duration=...)` +
+  `RunClient.abort()` is the correct pattern, and that
+  `apify_client.errors.InvalidRequestError` (HTTP 400) is the right signal
+  for "don't retry, it's a config error."
+- Tested with a mocked `ApifyClient` (no live cost) covering: timeout → abort
+  → retry → success, zero-records → retry → success, config-error → no
+  retry, and exhaust-all-3-attempts → `FAILED`. Then live-tested for real
+  (`--platform all --limit 1` and `--platform youtube --limit 1`) — both
+  passed on attempt 1, `errors.json` empty, all `raw/`/`normalized/` files
+  written correctly.
+- Live testing so far cost **$0.2179** of the account's **$5.00/month** free
+  Apify credit (~$4.78 left). Pulled exact per-event pricing via
+  `client.run(id).get().pricing_info` — TikTok: $0.001 flat start +
+  $0.0037/result; Instagram search: $0.0027/result; Instagram profile:
+  $0.0026/profile; YouTube: $0.004/result. A full `--limit 1` all-platform
+  pass costs ~$0.014 in pure event charges; observed real spend runs a bit
+  higher, so budget ~$0.05–0.15/run when planning further live tests.
+- One live run showed YouTube taking 82.2s total when its own container log
+  only spanned 17.4s — pulled `run.started_at`/`finished_at`/`stats` and
+  confirmed the ~65s gap was Apify queueing the run before the container
+  even started (not a bug in this code). Not something we can fix from the
+  client side; the timeout harness already bounds it at `ACTOR_TIMEOUT_SECONDS`.
+- Agreed but **not yet built**: a 3-day soak test to measure TikTok/Instagram's
+  real failure rate over time (not one lucky run), capped at **$3.50** spend.
+  Planned as a GitHub Actions scheduled workflow (cron every ~3h, ~24 runs,
+  `APIFY_TOKEN` in Actions Secrets) rather than AWS, since the workload is
+  tiny and the repo is already on GitHub — each cycle checks
+  `client.user().monthly_usage()` against a start-of-test baseline and skips
+  the run (logging `BUDGET_CAP_REACHED`) if the $3.50 cap would be exceeded.
+  Next step when picked back up: build the runner + `data/soak_test/log.jsonl`
+  aggregator, then create the scheduled workflow.
+- Initialized git in this directory (previously not a repo), set repo-local
+  identity, and pushed the initial commit to GitHub (see "Git / GitHub"
+  above) — hit and resolved a Git Credential Manager conflict from multiple
+  cached GitHub accounts on this machine along the way.
