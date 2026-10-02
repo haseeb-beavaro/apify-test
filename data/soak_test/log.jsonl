@@ -82,3 +82,4 @@
 {"run_timestamp": "2026-09-30T17:52:02Z", "status": "SKIPPED_BUDGET_CAP", "spent_by_soak_test_usd": 3.652, "budget_cap_usd": 3.5}
 {"run_timestamp": "2026-10-01T05:15:31Z", "status": "SKIPPED_BUDGET_CAP", "spent_by_soak_test_usd": 3.6521, "budget_cap_usd": 3.5}
 {"run_timestamp": "2026-10-01T18:17:43Z", "status": "SKIPPED_BUDGET_CAP", "spent_by_soak_test_usd": 3.6522, "budget_cap_usd": 3.5}
+{"run_timestamp": "2026-10-02T05:03:44Z", "status": "SKIPPED_BUDGET_CAP", "spent_by_soak_test_usd": 3.6523, "budget_cap_usd": 3.5}
